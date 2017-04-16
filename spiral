@@ -1,0 +1,320 @@
+ <!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>Spiral</title>
+	<link rel="stylesheet" href="style.css" type="text/css" media="screen">
+	<script src="jquery-3.1.1.min.js"></script>
+	<script async defer
+    	src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA4sKHmKb78U1dxo2vW6-dgGuqX-aTbVnQ&callback=initMap">
+    </script>
+</head>
+
+<body>
+
+	<div id="wrapper">
+		
+		<div id="info">
+			<div id="content">
+				<div id="disc">
+					<h1>Location Based Art</h1>
+					<p> The design on the right uses the latitude and longitude of the map to generate a custom work of art unique to the location. </p>
+					<h2>The coordinates for this graph are:</h2>
+					<h3>Latitude:<span id="lat1"></span></h3>
+					<h3>Longitude:<span id="lng1"></span></h3>
+				</div>
+				<div id="buttons">
+					<button id="you"><h3>You</h3></button>
+					<button id="london"><h3>London</h3></button>
+					<button id="sydney"><h3>Sydney</h3></button>
+					<button id="toyko"><h3>Toyko</h3></button>
+					<button id="wsuv"><h3>WSUV</h3></button>
+				</div>
+			</div>
+			<div id="map"></div>
+		</div>
+		<div id="art">
+			<canvas id="canvas" width="1080px" height="1080px"></canvas>
+		</div>
+	</div>
+
+	<script>
+      // Note: This example requires that you consent to location sharing when
+      // prompted by your browser. If you see the error "The Geolocation service
+      // failed.", it means you probably did not give permission for the browser to
+      // locate you.
+		
+
+		var pos;
+		var centerLat = 45.59800618351621;
+		var centerLng = -122.61521495439456;
+		var cLat;
+		var cLng;
+		var myLatLng = {lat: + centerLat, lng: centerLng};
+		var map
+		var infoWindow
+		var z = 10; // equalivant of the teeth of the spirial graph
+		var canvas = document.getElementById('canvas');
+		var context = canvas.getContext('2d');
+		var theta = 0;
+		var canvas = document.getElementById('canvas'); 
+		var context = canvas.getContext('2d'); 
+		var canvasW = canvas.width; 
+		var canvasH = canvas.height; 
+		var centerX = canvas.width/2; 
+		var centerY = canvas.height/2; 
+		var drawLoop;
+		var freqM;
+		var amp1;
+		var freq1;
+		var amp2;
+		var freq2;
+		var deg;
+		var x;
+		var y;
+		var oldX;
+		var oldY;
+		var firstX;
+		var firstY;
+		var first;
+		var centerLine;
+		var gravity = .001;
+		var hue;
+		var sat;
+		var dir;
+		var RGBd;
+		var RGBa;
+		var colorRange = 255;
+		var colorSpeed = .0075;
+		
+		var london = {
+			lat: 51.511041,
+			lng: -0.137997
+		};
+		var sydney= {
+			lat: -33.873061,
+			lng: 151.207965
+		};
+		var toyko = {
+			lat: 35.728465,
+			lng: 139.732353
+		};
+		var wsuv = {
+			lat: 45.733822,
+			lng: -122.633364
+		};
+
+		function concat (){ 
+			cLat = centerLat.replace(/\./g,'').replace(/\-/,'');
+			cLng = centerLng.replace(/\./g,'').replace(/\-/,'');
+		}
+
+		function initMap() { //adjusted from Google Map API sample
+			map = new google.maps.Map(document.getElementById('map'), {
+				center: myLatLng,
+				zoom: 12
+			});
+
+			infoWindow = new google.maps.InfoWindow({map: map});
+
+		// Try HTML5 geolocation.
+			if (navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition(function(position) {
+					pos = {
+						lat: position.coords.latitude,
+						lng: position.coords.longitude
+					};
+
+					infoWindow.setPosition(pos);
+					infoWindow.setContent('Location found.');
+					map.setCenter(pos);
+				}, 
+
+				function() {
+					handleLocationError(true, infoWindow, map.getCenter());
+				});
+			} 
+
+			else {
+			// Browser doesn't support Geolocation
+				handleLocationError(false, infoWindow, map.getCenter());
+			}
+			
+			centerLat = map.getCenter().lat().toString();
+			centerLng = map.getCenter().lng().toString();
+			document.getElementById("lat1").innerHTML = map.getCenter().lat();
+			document.getElementById("lng1").innerHTML = map.getCenter().lng();
+			concat();
+						
+			map.addListener('center_changed', function() {
+				stopDraw();
+				centerLat = map.getCenter().lat().toString();
+				centerLng= map.getCenter().lng().toString();
+				document.getElementById("lat1").innerHTML = map.getCenter().lat();
+				document.getElementById("lng1").innerHTML = map.getCenter().lng();
+				concat();
+				init();
+			});
+			
+			$("#you").click(function() {
+				map.setCenter(pos);
+			});
+			$("#london").click(function() {
+				map.setCenter(london);
+			});
+			$("#toyko").click(function() {
+				map.setCenter(toyko);
+			});
+			$("#sydney").click(function() {
+				map.setCenter(sydney);
+			});
+			$("#wsuv").click(function() {
+				map.setCenter(wsuv);
+			});
+
+		} //end initMap
+
+		// error handler
+		function handleLocationError(browserHasGeolocation, infoWindow, pos) {
+			infoWindow.setPosition(pos);
+			infoWindow.setContent(browserHasGeolocation ?
+							  'Error: The Geolocation service failed.' :
+							  'Error: Your browser doesn\'t support geolocation.');
+		}
+
+		
+		// all elements below are inspired or used by http://www.chrisellerby.com/works/html5-canvas-spirograph/  major changes have been noted
+		function init(){
+			context.shadowOffsetX = 0; 
+			context.shadowOffsetY = 0;
+			context.shadowBlur = 10;
+			newShape();
+		}
+
+		function newShape(){
+			clearInterval(drawLoop);
+			clearC();
+			first = true;
+			deg = 0;
+			freqM =(cLat[7]+cLng[7]) * 50 + 100;
+	
+			amp1 = cLat[6]*20;
+			freq1 = (cLat[5]-5)/freqM;
+			
+			amp2 = cLng[6]*20;
+			freq2 = (cLng[5]-5)/freqM;
+			
+			RGBa = [(28.3*cLat[0]),(28.3*cLat[1]),(28.3*cLat[2])];
+			newRGBd();
+			
+			centerLine = cLat[4]+cLng[4];
+
+			drawLoop = setInterval(function(){draw();},10);
+		}
+		
+		function newRGBd(){
+			RGBd = [RGBa[0]+((cLng[0])*colorRange-(colorRange/2)),RGBa[0]+((cLng[1]/10)*colorRange-(colorRange/2)),RGBa[0]+((cLng[2]/10)*colorRange-(colorRange/2))];
+		}
+		
+		function draw(){
+			for(var i=0; i< 50; i ++){
+				deg++;
+
+				if(gravity){
+					amp1 -= gravity*cLat[4];
+					amp2 -= gravity*cLng[4];
+					if(amp1 < 0){
+						stopDraw();
+						break;
+					}
+					if(amp2 < 0){
+						stopDraw();
+						break;
+					}
+				}
+				
+				x = (centerX + amp1 * Math.cos(freq1 * deg)) + (amp2 * Math.cos(freq2 * deg * z));
+				y = (centerY + amp1 * Math.sin(freq1 * deg)) + (amp2 * Math.sin(freq2 * deg * z));
+				
+				if(first){
+					first = false;
+					firxtX = x;
+					firstY = y;
+					oldX = x;
+					oldY = y;
+				}
+  
+				context.shadowColor = 'rgb('+colorUpdate(0)+','+colorUpdate(1)+','+colorUpdate(2)+')';
+				context.beginPath();
+				context.moveTo(oldX,oldY);
+				context.lineTo(x,y);
+				context.lineWidth = 1;
+				context.strokeStyle = 'rgb('+colorUpdate(0)+','+colorUpdate(1)+','+colorUpdate(2)+')';
+				context.stroke();
+				
+				if(centerLine){
+					context.beginPath();
+					context.moveTo(centerX,centerY);
+					context.lineTo(x,y);
+					context.lineWidth = .01;
+					context.strokeStyle = 'rgb('+colorUpdate(0)+','+colorUpdate(1)+','+colorUpdate(2)+')';
+					context.stroke();
+				}
+				
+				oldX = x;
+				oldY = y;
+
+			}
+			if(deg>0 && !gravity){
+				stopDraw();
+			}
+		}
+				
+		function colorUpdate(i){
+			if(Math.abs(RGBd[i]-RGBa[i])<1){ 
+				RGBa[i]=RGBd[i];
+			} else if(RGBd[i]>RGBa[i]){
+				RGBa[i]+=colorSpeed;
+			} else if(RGBd[i]<RGBa[i]){
+				RGBa[i]-=colorSpeed;
+			}
+			
+			if(RGBa[i]>255){
+				RGBa[i] = 255;
+			} else if (RGBa[i]<0){
+				RGBa[i] = 0;
+			}
+			
+			if(Math.abs(RGBd[0]-RGBa[0])<1 && Math.abs(RGBd[1]-RGBa[1])<1 && Math.abs(RGBd[2]-RGBa[2])<1){ 
+				newRGBd();
+			}
+			
+			return Math.floor(RGBa[i]);
+		}
+		
+		function stopDraw(){
+			clearInterval(drawLoop);
+		}
+		
+		function clearC(){
+			context.globalCompositeOperation = "copy";
+			context.fillRect(0,0, canvasW, canvasH);
+			context.globalCompositeOperation = "lighter";
+		}
+
+		$(document).ready(function() {
+			init();
+			initMap();
+			concat();
+		});
+		
+		
+
+			
+	</script>
+	
+
+
+</body>
+</html>
+
+	
